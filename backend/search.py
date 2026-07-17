@@ -35,7 +35,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY,  OPENAI_API_KEY]):
     raise EnvironmentError("One or more required environment variables are missing.")
 
-# Initialize clients for Supabase, NewsAPI, and OpenAI
+# Initialize clients for Supabase, and OpenAI
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
