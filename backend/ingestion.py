@@ -43,7 +43,7 @@ newsapi = NewsApiClient(api_key=NEWS_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Function to fetch news articles from NewsAPI
-def fetch_news_articles(query: str, language: str = "en", page_size: int = 10):
+def fetch_news_articles(query: str, language: str = "en", page_size: int = 100):
     """
     Fetch news articles from NewsAPI based on a query.
 
