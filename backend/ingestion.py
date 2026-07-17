@@ -50,7 +50,7 @@ def fetch_news_articles(query: str, language: str = "en", page_size: int = 100):
     Args:
         query (str): The search query for fetching news articles.
         language (str): The language of the news articles (default is "en").
-        page_size (int): The number of articles to fetch (default is 10)."""
+        page_size (int): The number of articles to fetch (default is 100)."""
     
     results = newsapi.get_everything(
         q=query,
