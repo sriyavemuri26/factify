@@ -4,8 +4,8 @@ import logging
 from openai import OpenAI
 from dotenv import load_dotenv
 from pathlib import Path
-from search import semantic_search
-from ingestion import process_documents
+from backend.search import semantic_search
+from backend.ingestion import process_documents
 from typing import List, Dict, Any, TypedDict
 
 from langgraph.graph import StateGraph, START, END
