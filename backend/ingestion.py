@@ -2,6 +2,7 @@ import os
 import logging
 from newsapi import NewsApiClient
 from supabase import create_client, Client
+from typing import List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 from pathlib import Path
@@ -41,6 +42,53 @@ if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY, NEWS_API_KEY, OPENAI_API_KEY]):
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 newsapi = NewsApiClient(api_key=NEWS_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Process documents function to insert documents into Supabase
+def process_documents(documents: List[Dict[str, Any]]) -> None:
+    """
+    Process and insert a list of documents into the Supabase database.
+
+    Args:
+        documents (List[Dict[str, Any]]): A list of document dictionaries to be inserted."""
+
+    for idx, article in enumerate(documents):
+        title = article.get("title")
+        content = article.get("content")
+        url = article.get("url")
+        source_name = article.get("source", {}).get("name")
+
+        if not content.strip():
+            logger.warning(f"Skipping article '{title}' due to empty content.")
+            continue
+        
+        try:
+            logging.debug(f" [{idx + 1}] Embedding: {title[:50]}...")
+
+            # Generate embedding for the content using OpenAI
+            embedding_response = openai_client.embeddings.create(
+                model="text-embedding-3-small",
+                input=content
+            )
+            embedding_vector = embedding_response.data[0].embedding
+            
+            logging.debug(f"OpenAI Generated vector!")
+
+            # Insert the article into the Supabase database
+            supabase.table("documents").insert({
+                "title": title,
+                "content": content,
+                "url": url,
+                "source_name": source_name,
+                "embedding": embedding_vector
+            }).execute()
+
+            logging.debug(f"Supabase Row written successfully!")
+    
+        except Exception as e:
+            logger.error(f"Error processing article '{title}': {str(e)}")
+
+    logger.debug(f"Processed {len(documents)} documents and inserted into Supabase successfully.")
+
 
 # Function to fetch news articles from NewsAPI
 def fetch_news_articles(query: str, language: str = "en", page_size: int = 100):
