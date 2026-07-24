@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.agent import factify_agent
+from backend.tools.mcp_schemas import get_mcp_tool_definitions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +15,11 @@ app = FastAPI(
     description="Multi-Agent Corrective RAG Engine API",
     version="1.0.0"
 )
+
+@app.get("/api/mcp/tools")
+def list_mcp_tools():
+    """Exposes agent tool interfaces using standard MCP schemas."""
+    return {"tools": get_mcp_tool_definitions()}
 
 # Enable CORS for Next.js frontend communication
 app.add_middleware(
