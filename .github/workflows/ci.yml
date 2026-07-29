@@ -27,6 +27,11 @@ jobs:
           pip install pytest httpx
 
       - name: Run Pytest suite
+        env:
+          OPENAI_API_KEY: "mock-openai-key"
+          SUPABASE_URL: "https://mock.supabase.co"
+          SUPABASE_SERVICE_KEY: "mock-supabase-key"
+          NEWS_API_KEY: "mock-news-key"
         run: |
           python -m pytest backend/tests/
 
