@@ -2,25 +2,5 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[project]
-name = "factify"
-version = "1.0.0"
-description = "Multi-Agent Corrective RAG Engine API"
-readme = "README.md"
-requires-python = ">=3.10"
-dependencies = [
-    "fastapi",
-    "uvicorn",
-    "pydantic",
-    "langchain",
-    "langgraph",
-    "openai",
-    "psycopg2-binary",
-    "pgvector"
-]
-
-[tool.setuptools.packages.find]
-where = ["."]
-
 [tool.vercel]
 entrypoint = "backend.main:app"
