@@ -81,33 +81,47 @@ class H output
 ## Getting Started Locally
 
 * **Step 1 (Clone Repository)**:
-  * `git clone https://github.com/YOUR_USERNAME/factify.git`
+  * `git clone https://github.com/sriyavemuri26/factify.git`
   * `cd factify`
 
 * **Step 2 (Environment Setup)**:
-  * Create a `.env` file in the project root directory.
-  * Add your OpenAI key and logging level:
-    ```dotenv
+  * Copy the example environment file:
+```bash
+    cp .env.example .env
+```
+  * Open `.env` and add your OpenAI API key and Supabase credentials:
+```dotenv
     OPENAI_API_KEY="sk-your-openai-key-here"
-    ENV_LOGGER="INFO"  # Set to DEBUG for detailed state machine execution logs
-    ```
+    SUPABASE_URL="https://your-project.supabase.co"
+    SUPABASE_SERVICE_ROLE_KEY="your-supabase-key"
+    ENV_LOGGER="INFO"  # Set to DEBUG for detailed agent logs
+```
 
-* **Step 3 (Backend & Dependencies Setup)**:
-  * `cd backend`
-  * `python -m venv .venv`
-  * `source .venv/bin/activate` (or `.venv\Scripts\activate` on Windows)
-  * `pip install -r requirements.txt`
+* **Step 3 (Choose a setup path)** — pick one:
 
-* **Step 4 (Run Agent in Terminal)**:
-  * Execute the LangGraph interactive CLI runner:
-    ```bash
-    python agent.py
-    ```
+  **Option A: Docker (runs both frontend and backend)**
+```bash
+  docker-compose up --build
+```
+  This builds and starts both services together — no separate frontend step needed.
 
-* **Step 5 (Frontend Setup)**:
-  * `cd ../frontend`
-  * `npm install`
-  * `npm start`
+  **Option B: Manual / Local Terminal**
 
-* **Step 6 (Docker Deployment Option)**:
-  * `docker-compose up --build`
+  Backend (Terminal 1):
+```bash
+  cd backend
+  python -m venv .venv
+  source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+  pip install -r requirements.txt
+  python -m uvicorn backend.main:app --reload --port 8000
+```
+
+  Frontend (Terminal 2):
+```bash
+  cd frontend
+  npm install
+  npm run dev
+```
+
+* **Step 4 (Verify)**:
+  * Open [http://localhost:3000](http://localhost:3000) in your browser to confirm the app is running.
