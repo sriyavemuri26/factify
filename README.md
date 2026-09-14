@@ -113,7 +113,7 @@ class H output
   python -m venv .venv
   source .venv/bin/activate   # On Windows: .venv\Scripts\activate
   pip install -r requirements.txt
-  python -m uvicorn backend.main:app --reload --port 8000
+  python -m uvicorn main:app --reload --port 8000
 ```
 
   Frontend (Terminal 2):

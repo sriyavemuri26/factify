@@ -3,11 +3,20 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Send, User, Bot, RefreshCw, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
+import ReactMarkdown from "react-markdown";
+
+interface Source {
+  index: number;
+  title: string;
+  url: string;
+  source_name: string;
+}
 
 interface Message {
   id: string;
   sender: "user" | "bot";
   text: string;
+  sources?: Source[];
 }
 
 export default function Home() {
@@ -74,8 +83,8 @@ export default function Home() {
         id: (Date.now() + 1).toString(),
         sender: "bot",
         text: data.answer || "No response received.",
+        sources: data.sources || [],
       };
-
       setMessages((prev) => [...prev, botMessage]);
     } catch (err) {
       console.error(err);
@@ -224,14 +233,55 @@ export default function Home() {
                   className={`max-w-[80%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed ${
                     msg.sender === "user"
                       ? "text-white rounded-tr-none shadow-md"
-                      : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none whitespace-pre-wrap shadow-sm"
+                      : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none shadow-sm"
                   }`}
                   style={{
                     backgroundColor:
                       msg.sender === "user" ? "#bf45cc" : undefined,
                   }}
                 >
-                  {msg.text}
+                  {msg.sender === "bot" ? (
+                    <>
+                      <ReactMarkdown
+                        components={{
+                          a: ({ node, ...props }) => (
+                            
+                              <a {...props}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline hover:opacity-80"
+                              style={{ color: "#bf45cc" }}
+                            />
+                          ),
+                          p: ({ node, ...props }) => <p className="whitespace-pre-wrap" {...props} />,
+                        }}
+                      >
+                        {msg.text}
+                      </ReactMarkdown>
+
+                      {msg.sources && msg.sources.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 space-y-1">
+                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                            Sources
+                          </p>
+                          {msg.sources.map((src) => (
+                            
+                             <a key={src.index}
+                              href={src.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-xs hover:underline truncate"
+                              style={{ color: "#bf45cc" }}
+                            >
+                              [{src.index}] {src.title || src.source_name || src.url}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <span className="whitespace-pre-wrap">{msg.text}</span>
+                  )}
                 </div>
               </div>
             ))}

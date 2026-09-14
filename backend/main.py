@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.agent import factify_agent
 from backend.tools.mcp_schemas import get_mcp_tool_definitions
+from typing import List, Dict, Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +38,7 @@ class ChatRequest(BaseModel):
 # Response schema
 class ChatResponse(BaseModel):
     answer: str
+    sources: List[Dict[str, Any]] = []
     status: str = "success"
 
 @app.get("/")
@@ -53,13 +55,13 @@ async def chat_endpoint(request: ChatRequest):
     try:
         logger.debug(f"Incoming API Request: '{user_message}'")
         
-        # Invoke our compiled LangGraph Corrective RAG Agent
         inputs = {"question": user_message}
         final_state = factify_agent.invoke(inputs)
         
         answer = final_state.get("generation", "I was unable to synthesize an answer.")
+        sources = final_state.get("sources", [])
         
-        return ChatResponse(answer=answer)
+        return ChatResponse(answer=answer, sources=sources)
         
     except Exception as e:
         logger.error(f"Error processing chat request: {str(e)}")

@@ -1,6 +1,7 @@
 from ast import If
 import os
 import logging
+import re
 from openai import OpenAI
 from dotenv import load_dotenv
 from pathlib import Path
@@ -49,6 +50,7 @@ class GraphState(TypedDict):
     documents: List[Dict[str, Any]]
     grade: str            # Values: 'yes' (relevant) or 'no' (needs correction)
     generation: str
+    sources: List[Dict[str, Any]]
 
 # State Nodes for the Factify Agent
 
@@ -170,6 +172,7 @@ def generate_node(state: GraphState) -> Dict[str, Any]:
         formatted_context += f"\n[Document {idx}]\n"
         formatted_context += f"Title: {doc.get('title')}\n"
         formatted_context += f"Source: {doc.get('source_name')}\n"
+        formatted_context += f"URL: {doc.get('url')}\n"
         formatted_context += f"Content: {doc.get('content')}\n"
         
     # Specialized system prompt for grounded response generation
@@ -179,9 +182,13 @@ def generate_node(state: GraphState) -> Dict[str, Any]:
         "CRITICAL REQUIREMENTS:\n"
         "1. Do not hallucinate or make up information.\n"
         "2. Use only the information provided in the context documents.\n"
-        "3. For every major claim you make in your answer, cite the source name inline with the answer. For example, if you are using information from Document 0, cite it as (Document 0).\n"
-        "4. Summarize key facts from the context documents to provide a concise and accurate answer.\n"
-        "5. If the answer is completely unknown or not present in the context documents, respond with 'I could not find any relevant information based on your query.'\n"
+        "3. For every major claim, cite the source inline using a bracketed number matching the document's index, "
+        "like this: [1], [2]. Document 0 in the context corresponds to citation [1], Document 1 to [2], and so on "
+        "(i.e. always add 1 to the document index).\n"
+        "4. Do NOT write out titles, URLs, or a sources list yourself — only use the bracketed numbers. The application "
+        "will generate the sources list separately.\n"
+        "5. Summarize key facts from the context documents to provide a concise and accurate answer.\n"
+        "6. If the answer is completely unknown or not present in the context documents, respond with 'I could not find any relevant information based on your query.'\n\n"
         f"CONTEXT DOCUMENTS:\n{formatted_context}"
     )
     
@@ -190,8 +197,37 @@ def generate_node(state: GraphState) -> Dict[str, Any]:
         SystemMessage(content=system_prompt),
         HumanMessage(content=question)
     ])
-    
-    return {"generation": response.content}
+
+    answer_text = response.content
+
+    # Find every citation number the model actually used, e.g. [1], [4]
+    cited_numbers = sorted(set(int(n) for n in re.findall(r"\[(\d+)\]", answer_text)))
+
+    # Build a mapping from old citation number -> new sequential number (1, 2, 3...)
+    renumber_map = {old: new for new, old in enumerate(cited_numbers, start=1)}
+
+    # Rewrite the text so citations are sequential starting at [1]
+    def replace_citation(match):
+        old_num = int(match.group(1))
+        new_num = renumber_map.get(old_num, old_num)
+        return f"[{new_num}]"
+
+    answer_text = re.sub(r"\[(\d+)\]", replace_citation, answer_text)
+
+    # Build sources list ONLY for docs the model actually cited
+    sources = []
+    for old_num in cited_numbers:
+        doc_idx = old_num - 1  # citation [1] maps to docs[0], etc.
+        if 0 <= doc_idx < len(docs):
+            doc = docs[doc_idx]
+            sources.append({
+                "index": renumber_map[old_num],
+                "title": doc.get("title"),
+                "url": doc.get("url"),
+                "source_name": doc.get("source_name"),
+            })
+
+    return {"generation": answer_text, "sources": sources}
 
 def decide_to_generate(state: GraphState) -> str:
     """Evaluates the state's grade to determine graph execution path."""
