@@ -63,7 +63,7 @@ class H output
 
 * **AI Agent & Framework**: LangGraph, LangChain, OpenAI API (GPT-4o-mini)
 * **Backend & Storage**: Python, FastAPI, Supabase (Vector Search), DuckDuckGo Search API (`ddgs`)
-* **Frontend**: TypeScript, React.js, Tailwind CSS
+* **Frontend**: TypeScript, Next.js, Tailwind CSS
 * **DevOps & Tooling**: Docker, GitHub Actions (CI/CD pipelines), Git, Python Logging
 
 ---
