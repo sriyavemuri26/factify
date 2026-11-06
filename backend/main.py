@@ -1,5 +1,5 @@
-import os
 import logging
+import time
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -56,7 +56,10 @@ async def chat_endpoint(request: ChatRequest):
         logger.debug(f"Incoming API Request: '{user_message}'")
         
         inputs = {"question": user_message}
+        start = time.perf_counter()
         final_state = factify_agent.invoke(inputs)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.info(f"[timing] total request took {elapsed_ms:.0f}ms")
         
         answer = final_state.get("generation", "I was unable to synthesize an answer.")
         sources = final_state.get("sources", [])

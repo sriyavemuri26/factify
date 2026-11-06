@@ -1,8 +1,8 @@
-from ast import If
 import os
 import logging
 import re
-from openai import OpenAI
+import time
+from functools import wraps
 from dotenv import load_dotenv
 from pathlib import Path
 from backend.search import semantic_search
@@ -52,8 +52,22 @@ class GraphState(TypedDict):
     generation: str
     sources: List[Dict[str, Any]]
 
+def timed(node_name: str):
+    """Decorator that logs how long a graph node takes."""
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(state: GraphState) -> Dict[str, Any]:
+            start = time.perf_counter()
+            result = fn(state)  # run the real node
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.info(f"[timing] {node_name} took {elapsed_ms:.0f}ms")
+            return result
+        return wrapper
+    return decorator
+
 # State Nodes for the Factify Agent
 
+@timed("retrieve")
 def retrieve_node(state: GraphState) -> Dict[str, Any]:
     """Pull relevant context data vectors from Supabase."""
 
@@ -66,6 +80,7 @@ def retrieve_node(state: GraphState) -> Dict[str, Any]:
 
     return {"documents": docs, "question": question}
 
+@timed("grade")
 def grade_node(state: GraphState) -> Dict[str, Any]:
     """Zero-shot evaluation to verify if documents are actually relevant."""
     # Store the question and documents in the state
@@ -100,6 +115,7 @@ def grade_node(state: GraphState) -> Dict[str, Any]:
     
     return {"grade": final_grade, "documents": docs}
 
+@timed("web_search")
 def web_search_correct_node(state: GraphState) -> Dict[str, Any]:
     """Fires a real-time query out to the live web using DuckDuckGo's dedicated news index."""
 
@@ -143,7 +159,10 @@ def web_search_correct_node(state: GraphState) -> Dict[str, Any]:
             # If corrected documents were found, cache them into Supabase for future queries
             if corrected_documents:
                 logger.debug("Caching corrected documents into Supabase for future queries...")
+                start_time = time.perf_counter()
                 process_documents(corrected_documents)
+                elapsed_time = (time.perf_counter() - start_time) * 1000
+                logger.info(f"Cached {len(corrected_documents)} corrected documents in {elapsed_time:.2f} ms.")
     
     except Exception as e:
         logger.error(f"Web search correction execution faulted: {str(e)}")
@@ -158,6 +177,7 @@ def web_search_correct_node(state: GraphState) -> Dict[str, Any]:
 
     return {"documents": corrected_documents, "question": question}
 
+@timed("generate")
 def generate_node(state: GraphState) -> Dict[str, Any]:
     """Generate final response using the optimized context pool."""
 
