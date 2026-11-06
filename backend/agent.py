@@ -3,6 +3,7 @@ import logging
 import re
 import time
 from functools import wraps
+from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 from pathlib import Path
 from backend.search import semantic_search
@@ -43,6 +44,9 @@ llm = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY,
     temperature=0.2
 )
+
+# For caching corrected documents asynchronously
+cache_executor = ThreadPoolExecutor(max_workers=2) 
 
 # State Schema for the Factify Agent
 class GraphState(TypedDict):
@@ -115,6 +119,16 @@ def grade_node(state: GraphState) -> Dict[str, Any]:
     
     return {"grade": final_grade, "documents": docs}
 
+def cache_documents_in_background(docs: List[Dict[str, Any]]) -> None:
+    """Runs on a background thread: embeds and stores web results for future queries."""
+    try:
+        start = time.perf_counter()
+        process_documents(docs)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.info(f"[timing] caching ({len(docs)} docs) took {elapsed_ms:.0f}ms (background)")
+    except Exception as e:
+        logger.error(f"Background caching failed: {e}")
+
 @timed("web_search")
 def web_search_correct_node(state: GraphState) -> Dict[str, Any]:
     """Fires a real-time query out to the live web using DuckDuckGo's dedicated news index."""
@@ -158,11 +172,8 @@ def web_search_correct_node(state: GraphState) -> Dict[str, Any]:
 
             # If corrected documents were found, cache them into Supabase for future queries
             if corrected_documents:
-                logger.debug("Caching corrected documents into Supabase for future queries...")
-                start_time = time.perf_counter()
-                process_documents(corrected_documents)
-                elapsed_time = (time.perf_counter() - start_time) * 1000
-                logger.info(f"Cached {len(corrected_documents)} corrected documents in {elapsed_time:.2f} ms.")
+                logger.debug("Caching corrected documents in the background...")
+                cache_executor.submit(cache_documents_in_background, list(corrected_documents))
     
     except Exception as e:
         logger.error(f"Web search correction execution faulted: {str(e)}")
