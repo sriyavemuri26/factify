@@ -45,50 +45,43 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Process documents function to insert documents into Supabase
 def process_documents(documents: List[Dict[str, Any]]) -> None:
-    """
-    Process and insert a list of documents into the Supabase database.
-
-    Args:
-        documents (List[Dict[str, Any]]): A list of document dictionaries to be inserted."""
-
-    for idx, article in enumerate(documents):
-        title = article.get("title")
-        content = article.get("content")
-        url = article.get("url")
-        source_name = article.get("source", {}).get("name")
-
-        if not content.strip():
-            logger.warning(f"Skipping article '{title}' due to empty content.")
+    """Embed and store documents in Supabase using one embedding call and one insert."""
+    # Keep only documents with real text content
+    valid_docs = []
+    for article in documents:
+        content = (article.get("content") or "").strip()
+        if not content:
+            logger.warning(f"Skipping article '{article.get('title')}' due to empty content.")
             continue
-        
-        try:
-            logging.debug(f" [{idx + 1}] Embedding: {title[:50]}...")
+        valid_docs.append({**article, "content": content})
 
-            # Generate embedding for the content using OpenAI
-            embedding_response = openai_client.embeddings.create(
-                model="text-embedding-3-small",
-                input=content
-            )
-            embedding_vector = embedding_response.data[0].embedding
-            
-            logging.debug(f"OpenAI Generated vector!")
+    if not valid_docs:
+        return
 
-            # Insert the article into the Supabase database
-            supabase.table("documents").insert({
-                "title": title,
-                "content": content,
-                "url": url,
-                "source_name": source_name,
-                "embedding": embedding_vector
-            }).execute()
+    try:
+        # One embedding call for every document (results come back in the same order)
+        embedding_response = openai_client.embeddings.create(
+            model="text-embedding-3-small",
+            input=[doc["content"] for doc in valid_docs],
+        )
 
-            logging.debug(f"Supabase Row written successfully!")
-    
-        except Exception as e:
-            logger.error(f"Error processing article '{title}': {str(e)}")
+        # Build all the rows, then insert them in a single request
+        rows = []
+        for doc, item in zip(valid_docs, embedding_response.data):
+            rows.append({
+                "title": doc.get("title"),
+                "content": doc["content"],
+                "url": doc.get("url"),
+                # Web results store a flat "source_name"; NewsAPI articles nest it under "source"
+                "source_name": doc.get("source_name") or (doc.get("source") or {}).get("name"),
+                "embedding": item.embedding,
+            })
 
-    logger.debug(f"Processed {len(documents)} documents and inserted into Supabase successfully.")
+        supabase.table("documents").insert(rows).execute()
+        logger.debug(f"Inserted {len(rows)} documents into Supabase.")
 
+    except Exception as e:
+        logger.error(f"Failed to cache {len(valid_docs)} documents: {e}")
 
 # Function to fetch news articles from NewsAPI
 def fetch_news_articles(query: str, language: str = "en", page_size: int = 100):
